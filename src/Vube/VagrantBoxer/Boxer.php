@@ -350,7 +350,10 @@ class Boxer {
 
 	public function writeMetaData()
 	{
-		$json = json_encode($this->metadata, JSON_PRETTY_PRINT);
+		// JSON_PRETTY_PRINT was introduced in PHP 5.4
+		$flags = PHP_VERSION_ID >= 54000 ? JSON_PRETTY_PRINT : 0;
+
+		$json = json_encode($this->metadata, $flags);
 
 		$fh = fopen($this->metadataJsonFilename, "w");
 		if(! $fh)
