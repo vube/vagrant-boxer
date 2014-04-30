@@ -1,4 +1,4 @@
-#!/usr/bin/php
+#!/usr/bin/php -d memory_limit=1024M
 <?php
 /**
  * Vagrant Boxer application
