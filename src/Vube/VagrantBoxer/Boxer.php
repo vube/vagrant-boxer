@@ -17,8 +17,6 @@ use Vube\VagrantBoxer\Exception\MissingArgumentException;
 class Boxer {
 
 	const DEFAULT_CONFIG = 'default';
-	const METADATA_DEFAULT = 0;
-	const METADATA_CUSTOM = 1;
 
 	private $stderr;
 	private $verbose = false;
@@ -27,7 +25,8 @@ class Boxer {
 	private $urlTemplate;
 
 	private $name;
-	private $version;
+	private $boxerId;
+	private $version = null;
 	private $url;
 
 	private $provider = 'virtualbox';
@@ -44,13 +43,28 @@ class Boxer {
 	private $metadataJsonFilename = 'metadata.json'; // in current directory
 	private $vagrantBoxOutputFilename = 'package.box'; // in current directory
 
-	private $metadata;
+	private $metadata = null;
 
 	public function __construct()
 	{
 		$this->stderr = STDERR;
 		$this->updateVersion = false;
 		$this->repackage = true;
+	}
+
+	public function getName()
+	{
+		return $this->name;
+	}
+
+	public function getBoxerId()
+	{
+		return $this->boxerId;
+	}
+
+	public function getProvider()
+	{
+		return $this->provider;
 	}
 
 	public function getMetaData()
@@ -156,6 +170,11 @@ class Boxer {
 					$i++;
 					break;
 
+				case '--boxer-id':
+					$this->boxerId = $this->getNextArg($args, $i);
+					$i++;
+					break;
+
 				case '--url':
 					$this->defaultUrlTemplatePrefix = '';
 					$this->defaultUrlTemplateSuffix = $this->getNextArg($args, $i);
@@ -182,32 +201,6 @@ class Boxer {
 					break;
 			}
 		}
-	}
-
-	public function getDefaultMetaData()
-	{
-		return array(
-			'name' => $this->baseName,
-			'provider' => $this->provider,
-			'versions' => array(),
-		);
-	}
-
-	public function checkMetaData(&$obj)
-	{
-		if(! is_array($obj))
-			throw new Exception\InvalidInputException("Invalid data read from {$this->metadataJsonFilename}");
-
-		if(! isset($obj['name']))
-			$obj['name'] = $this->baseName;
-
-		if(! isset($obj['provider']))
-			$obj['provider'] = $this->provider;
-
-		if(! isset($obj['versions']))
-			$obj['versions'] = array();
-		else if(! is_array($obj['versions']))
-			throw new Exception\InvalidInputException("Unexpected data found in {$this->metadataJsonFilename}");
 	}
 
 	public function getDefaultBoxerConfig()
@@ -268,28 +261,19 @@ class Boxer {
 		$this->name = $obj['vm-name'];
 		$this->majorVersion = isset($obj['version']) ? $obj['version'] : 0;
 		$this->urlTemplate = $obj['url-template'];
+
+		// Unless we specifically configured it, the default boxer-id
+		// is the same as the vm-name
+		if(! isset($obj['boxer-id']))
+			$obj['boxer-id'] = empty($this->boxerId) ? $obj['vm-name'] : $this->boxerId;
+
+		$this->boxerId = $obj['boxer-id'];
 	}
 
 	public function loadMetaData()
 	{
-		$json = @file_get_contents($this->metadataJsonFilename);
-
-		if($json !== false)
-		{
-			$obj = json_decode($json, true);
-
-			$this->checkMetaData($obj);
-			$this->metadata = $obj;
-
-			return self::METADATA_CUSTOM;
-		}
-
-		$cwd = posix_getcwd();
-		$this->writeStderr("Notice: No {$this->metadataJsonFilename} found (current dir: $cwd)");
-
-		$this->metadata = $this->getDefaultMetaData();
-
-		return self::METADATA_DEFAULT;
+		$this->metadata = new MetaData($this->boxerId);
+		return $this->metadata->loadFromFile($this->metadataJsonFilename);
 	}
 
 	public function computeUrl($template=null)
@@ -301,27 +285,23 @@ class Boxer {
 		return $url;
 	}
 
+	public function calculateCurrentVersionNumber()
+	{
+		$activeVersionNumber = $this->metadata->getActiveVersionNumber();
+
+		if($activeVersionNumber !== null)
+			return $activeVersionNumber;
+
+		$defaultVersionNumber = $this->majorVersion . '.0';
+		return $defaultVersionNumber;
+	}
+
 	public function postConfigure()
 	{
-		$this->metadata['provider'] = $this->provider;
-
-		if(count($this->metadata['versions']))
-		{
-			if(! isset($this->metadata['versions'][0]['version']))
-				throw new Exception("Unexpected version definition in position 0");
-
-			$this->version = $this->metadata['versions'][0]['version'];
-		}
-		else
-		{
-			$this->version = $this->majorVersion . '.0';
-		}
+		$this->version = $this->calculateCurrentVersionNumber();
 
 		// AFTER computing the version, compute url
 		$this->url = $this->computeUrl();
-
-		// In case the name changed, do it
-		$this->metadata['name'] = $this->name;
 	}
 
 	public function bumpVersionNumber()
@@ -334,53 +314,37 @@ class Boxer {
 
 		// We changed the version number, recompute the URL
 		$this->url = $this->computeUrl();
-
-		// Add new version to metadata
-		$newVersionInfo = array(
-			'version' => $version,
-			'providers' => array(
-				'name' => $this->provider,
-				'url' => $this->url,
-			),
-		);
-
-		// Prepend new version info to metadata versions list
-		array_unshift($this->metadata['versions'], $newVersionInfo);
 	}
 
 	public function writeMetaData()
 	{
-		// JSON_PRETTY_PRINT was introduced in PHP 5.4
-		$flags = PHP_VERSION_ID >= 54000 ? JSON_PRETTY_PRINT : 0;
+		if($this->metadata->saveToFile($this->metadataJsonFilename))
+		{
+			$cwd = posix_getcwd();
+			$file = realpath($cwd .DIRECTORY_SEPARATOR. $this->metadataJsonFilename);
 
-		$json = json_encode($this->metadata, $flags);
+			$this->write("METADATA LOCATION: $file\n");
+			return true;
+		}
 
-		$fh = fopen($this->metadataJsonFilename, "w");
-		if(! $fh)
-			throw new Exception("Failed to write {$this->metadataJsonFilename}");
-
-		fwrite($fh, $json);
-		fclose($fh);
+		return false;
 	}
 
-	public function getBoxFilename()
+	public function getVersionedFilename()
 	{
 		return basename($this->url);
 	}
 
 	public function package()
 	{
-		if(substr($this->vagrantBoxOutputFilename,-4) !== ".box")
-			throw new Exception("vagrant box output filename must end in .box");
-
 		$boxname = $this->vagrantBoxOutputFilename;
-		$package = str_replace(".box", "", $boxname);
 
-		$basename = $this->getBoxFilename();
+		$versionedFilename = $this->getVersionedFilename();
 
 		if($this->repackage || ! file_exists($boxname))
 		{
-			@unlink($boxname); // Remove existing file (if any) to prevent vagrant errors
+			// Remove existing file (if any) to prevent vagrant errors
+			@unlink($boxname);
 
 			$command = array(
 				$this->pathToVagrant, 'package',
@@ -399,33 +363,31 @@ class Boxer {
 			if(! file_exists($boxname))
 				throw new Exception("vagrant package seems to have failed; its expected output file ($boxname) does not exist. Make sure the vm-name ({$this->name}) corresponds to the name of your VM in VirtualBox and that this VM exists in VirtualBox");
 		}
-		else
-		{
-			$this->write("Notice: Using existing $boxname due to --keep-package\n");
-		}
 
-		$this->write("Opening $boxname\n");
-		$zt = new \PharData($boxname);
+		// Copy the output file to the final location
+		// Why copy?  Mainly for testing so I don't have to keep repackaging,
+		// which consumes a ton of time.
+		@unlink($versionedFilename); // remove any existing file before trying to copy
+		if(! copy($boxname, $versionedFilename))
+			throw new Exception("Unable to copy vagrant package to $versionedFilename");
 
-		$this->write("Decompressing $boxname\n");
-		@unlink("$package.tar"); // Must clear the way for the new file
-		$t = $zt->decompress('.tar');
+		// Need to remember the new sha1 of this file
+		$sha1 = sha1_file($versionedFilename);
+		if($sha1 === false)
+			throw new Exception("Unable to compute sha1 checksum of file $versionedFilename");
 
-		$this->write("Adding metadata.json to $boxname\n");
-		$t->addFile($this->metadataJsonFilename, 'metadata.json');
+		// Add new version to metadata
+		$provider = array(
+			'name' => $this->provider,
+			'url' => $this->url,
+			'checksum_type' => 'sha1',
+			'checksum' => $sha1,
+		);
 
-		$this->write("Recompressing $boxname\n");
-		@unlink("$package.tar.gz"); // Must clear the way for the new file
-		$t->compress(\Phar::GZ);
-
-		// remove temp file package.tar
-		unlink("$package.tar");
-
-		// Move new package.box (with metadata.json) to boxname-1.1-virtualbox.box
-		rename("$package.tar.gz", $basename);
+		$this->metadata->addVersionProvider($this->version, $provider);
 
 		$cwd = posix_getcwd();
-		$file = realpath($cwd . DIRECTORY_SEPARATOR . $basename);
+		$file = realpath($cwd . DIRECTORY_SEPARATOR . $versionedFilename);
 
 		$this->write("PACKAGE LOCATION: $file\n");
 	}
@@ -446,16 +408,14 @@ class Boxer {
 
 	public function exec()
 	{
-		// 1) IFF we are updating the metadata
-		// 1.1) Bump the version number
-		// 1.2) Write the new metadata.json
+		// 1) IFF we are updating the metadata, bump the version number
 		if($this->updateVersion)
-		{
 			$this->bumpVersionNumber();
-			$this->writeMetaData();
-		}
 
-		// 3) Package up the box
+		// 2) Package up the box
 		$this->package();
+
+		// 3) IFF something changed, write the metadata.json
+		$this->writeMetaData();
 	}
 }

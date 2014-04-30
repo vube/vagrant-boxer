@@ -7,6 +7,7 @@ namespace unit\Vube\VagrantBoxer;
 
 use org\bovigo\vfs\vfsStream;
 use Vube\VagrantBoxer\Boxer;
+use Vube\VagrantBoxer\MetaData;
 
 
 class BoxerTest extends \PHPUnit_Framework_TestCase {
@@ -73,14 +74,6 @@ class BoxerTest extends \PHPUnit_Framework_TestCase {
 		$box = new Boxer;
 		$this->setExpectedException('\Vube\VagrantBoxer\Exception\MissingArgumentException');
 		$foo = $box->getNextArg($args, 0);
-	}
-
-	public function testDefaultMetaData()
-	{
-		$box = new Boxer;
-		$metadata = $box->getDefaultMetaData();
-		$this->assertArrayHasKey('provider', $metadata);
-		$this->assertArrayHasKey('versions', $metadata);
 	}
 
 	public function testDefaultBoxerConfigRequiresBaseName()
@@ -169,7 +162,10 @@ class BoxerTest extends \PHPUnit_Framework_TestCase {
 		$box->loadBoxerConfig();
 		$r = $box->loadMetaData();
 
-		$this->assertSame(Boxer::METADATA_DEFAULT, $r, "Expected default metadata");
+		$this->assertSame(MetaData::METADATA_DEFAULT, $r, "Expected default metadata");
+
+		$metadata = $box->getMetaData();
+		$this->assertSame($box->getName(), $metadata->get('name'));
 	}
 
 	public function testLoadMetaDataReturnsCustomWithExistingFile()
@@ -180,11 +176,10 @@ class BoxerTest extends \PHPUnit_Framework_TestCase {
 		$box->loadBoxerConfig();
 		$r = $box->loadMetaData();
 
-		$this->assertSame(Boxer::METADATA_CUSTOM, $r, "Expected custom metadata");
+		$this->assertSame(MetaData::METADATA_CUSTOM, $r, "Expected custom metadata");
 
 		$metadata = $box->getMetaData();
-		$this->assertArrayHasKey('provider', $metadata);
-		$this->assertArrayHasKey('versions', $metadata);
+		$this->assertSame($box->getName(), $metadata->get('name'));
 	}
 
 	public function testComputeUrlVariations()
@@ -193,15 +188,17 @@ class BoxerTest extends \PHPUnit_Framework_TestCase {
 			'metadata-file' => vfsStream::url('root/empty-metadata.json'),
 		));
 		$box->init();
-		$metadata = $box->getMetaData();
+
+		$name = $box->getName();
+		$provider = $box->getProvider();
 
 		$templates = array(
 			"" => "",
 			"abc" => "abc",
-			"{name}" => $metadata['name'],
+			"{name}" => $name,
 			"{version}" => "0.0",
-			"{provider}" => $metadata['provider'],
-			"http://localhost/{name}/{version}/{provider}" => "http://localhost/{$metadata['name']}/0.0/{$metadata['provider']}",
+			"{provider}" => $provider,
+			"http://localhost/{name}/{version}/{provider}" => "http://localhost/$name/0.0/$provider",
 		);
 
 		foreach($templates as $input => $expectedUrl)
@@ -211,6 +208,18 @@ class BoxerTest extends \PHPUnit_Framework_TestCase {
 		}
 	}
 
+	public function testMetaDataBoxerId()
+	{
+		$test = 'test-boxer-id';
+		$box = $this->constructBoxer(array(
+			'boxer-id' => $test,
+		));
+		$box->init();
+
+		$meta = $box->getMetaData();
+		$this->assertSame($test, $meta->get('name'));
+	}
+
 	public function testBumpVersionNumber()
 	{
 		$box = $this->constructBoxer(array(
@@ -218,19 +227,13 @@ class BoxerTest extends \PHPUnit_Framework_TestCase {
 		));
 		$box->init();
 
-		$meta1 = $box->getMetaData();
 		$v1 = $box->getVersion();
-
 		$this->assertSame("0.0", $v1); // control, by default version is 0.0
-		$this->assertTrue(count($meta1['versions']) === 0, "initial metadata[versions] is empty");
 
 		$box->bumpVersionNumber();
 
-		$meta2 = $box->getMetaData();
 		$v2 = $box->getVersion();
-
 		$this->assertSame("0.1", $v2); // expect minor version to increase
-		$this->assertTrue(count($meta2['versions']) === 1, "after update metadata[versions] is populated");
 	}
 
 	public function testWriteMetaDataFile()
@@ -295,7 +298,7 @@ class BoxerTest extends \PHPUnit_Framework_TestCase {
 		$box->init();
 		$meta2 = $box->getMetaData();
 
-		$this->assertEquals($meta1, $meta2);
+		$this->assertEquals($meta1->dataAsArray(), $meta2->dataAsArray());
 	}
 
 	public function testExecWithReusedEmptyBox()
@@ -309,7 +312,7 @@ class BoxerTest extends \PHPUnit_Framework_TestCase {
 		$box->init();
 		$box->exec();
 
-		$filename = $box->getBoxFilename();
+		$filename = $box->getVersionedFilename();
 
 		$this->assertFileExists($filename);
 	}
