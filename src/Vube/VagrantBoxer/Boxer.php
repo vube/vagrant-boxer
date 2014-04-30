@@ -397,7 +397,7 @@ class Boxer {
 				throw new Exception("vagrant package failed, exit code=$r from command: $command");
 
 			if(! file_exists($boxname))
-				throw new Exception("vagrant package seems to have failed: $boxname does not exist");
+				throw new Exception("vagrant package seems to have failed; its expected output file ($boxname) does not exist. Make sure the vm-name ({$this->name}) corresponds to the name of your VM in VirtualBox and that this VM exists in VirtualBox");
 		}
 		else
 		{
