@@ -21,13 +21,58 @@ Features
 Installation
 ------------
 
-TODO
+To install, clone this repository and put it wherever you want it to live on
+your machine.
+
+```bash
+$ git clone https://github.com/vube/vagrant-boxer
+```
+
+Then you can optionally symlink something like /usr/local/bin/boxer.php
+to this so it will run from your path just by typing `boxer.php`
+
+```bash
+$ sudo ln -sf /path/to/vagrant-boxer/boxer.php /usr/local/bin/boxer.php
+```
 
 
 Example Usage
 -------------
 
-TODO
+vagrant-boxer works either from command line switches or using a `boxer.json` config
+file.  Here are examples of both.
+
+
+### Usage via command line
+
+Note that the `{BASENAME}` below should be substituted with the name of the VM in your
+VirtualBox list.
+
+```bash
+$ boxer.php --bump-version --verbose --base "{BASENAME}" --url-prefix "http://your-file-server.com/" --major-version 1
+```
+
+
+### Usage via boxer.json
+
+Here again, `{BASENAME}` should be substituted with the name of the VM in your
+VirtualBox list.
+
+#### Running boxer.php using boxer.json
+
+```bash
+$ boxer.php --bump-version --verbose --config-file /path/to/boxer.json
+```
+
+#### Contents of boxer.json
+
+```json
+{
+    "vm-name": "{BASENAME}",
+    "version": 1,
+    "download-url-prefix": "http://your-file-server.com/"
+}
+```
 
 
 Dependencies
