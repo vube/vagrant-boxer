@@ -289,8 +289,22 @@ class Boxer {
 	{
 		$activeVersionNumber = $this->metadata->getActiveVersionNumber();
 
+		// If there is an active version
 		if($activeVersionNumber !== null)
-			return $activeVersionNumber;
+		{
+			// Find out the length of majorVersion, e.g. "1.0" == 3
+			$n = strlen($this->majorVersion);
+
+			// If active version looks like "1.0.x" then it's still part
+			// of the current major version
+			if(strlen($activeVersionNumber) > $this->majorVersion
+				&& substr($activeVersionNumber, 0, $n+1) === $this->majorVersion.'.')
+			{
+				return $activeVersionNumber;
+			}
+			// else the major version has changed so start the patch numbers
+			// over at zero
+		}
 
 		$defaultVersionNumber = $this->majorVersion . '.0';
 		return $defaultVersionNumber;
