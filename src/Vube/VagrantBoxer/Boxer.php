@@ -48,7 +48,7 @@ class Boxer {
 	public function __construct()
 	{
 		$this->stderr = STDERR;
-		$this->updateVersion = false;
+		$this->updateVersion = true;
 		$this->repackage = true;
 	}
 
@@ -147,8 +147,8 @@ class Boxer {
 					$i++;
 					break;
 
-				case '--bump-version':
-					$this->updateVersion = true;
+				case '--no-bump-version':
+					$this->updateVersion = false;
 					break;
 
 				case '--keep-package':

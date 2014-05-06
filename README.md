@@ -49,7 +49,7 @@ Note that the `{BASENAME}` below should be substituted with the name of the VM i
 VirtualBox list.
 
 ```bash
-$ boxer.php --bump-version --verbose --base "{BASENAME}" --url-prefix "http://your-file-server.com/" --major-version 1
+$ boxer.php --verbose --base "{BASENAME}" --url-prefix "http://your-file-server.com/" --major-version 1
 ```
 
 
@@ -61,7 +61,7 @@ VirtualBox list.
 #### Running boxer.php using boxer.json
 
 ```bash
-$ boxer.php --bump-version --verbose --config-file /path/to/boxer.json
+$ boxer.php --verbose --config-file /path/to/boxer.json
 ```
 
 #### Contents of boxer.json

@@ -304,7 +304,6 @@ class BoxerTest extends \PHPUnit_Framework_TestCase {
 	public function testExecWithReusedEmptyBox()
 	{
 		$box = $this->constructBoxer(array(
-			'bump-version' => true,
 			'keep-package' => true,
 			'metadata-file' => 'metadata.json',
 			'vagrant-output-file' => 'empty.box', // current directory

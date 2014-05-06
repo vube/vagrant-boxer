@@ -4,7 +4,7 @@
  * Vagrant Boxer application
  *
  * Usage:
- * php -d memory_limit=1024M boxer.php [--bump-version] [--keep-package] [--config-file /path/to/boxer.json]
+ * php -d memory_limit=1024M boxer.php [--no-bump-version] [--keep-package] [--config-file /path/to/boxer.json]
  *
  * @copyright 2014 Vubeology LLC
  * @author Ross Perkins <ross@vubeology.com>
