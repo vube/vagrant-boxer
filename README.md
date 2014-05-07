@@ -13,9 +13,13 @@ private box distribution systems.
 Features
 --------
 
-- x
-- y
-- z
+- Automatically package up Virtual Machines into reusable base boxes for use
+by other Vagrant configs.
+
+- Automatically create/update [vagrant-catalog](https://github.com/vube/vagrant-catalog)
+metadata.json files so you can run your own private internal Vagrant Cloud.
+
+- Automatically upload VM box images and metadata files to your file server.
 
 
 Installation
@@ -49,7 +53,7 @@ Note that the `{BASENAME}` below should be substituted with the name of the VM i
 VirtualBox list.
 
 ```bash
-$ boxer.php --verbose --base "{BASENAME}" --url-prefix "http://your-file-server.com/" --major-version 1
+$ boxer.php --verbose --base "{BASENAME}" --boxer-id "your-company/{BASENAME}"  --major-version 1.0 --url-prefix "http://your-file-server.com/" --upload-base-uri "username@your-file-server.com:/path/to/docroot"
 ```
 
 
@@ -69,8 +73,10 @@ $ boxer.php --verbose --config-file /path/to/boxer.json
 ```json
 {
     "vm-name": "{BASENAME}",
-    "version": 1,
-    "download-url-prefix": "http://your-file-server.com/"
+    "boxer-id": "your-company/{BASENAME}",
+    "version": "1.0",
+    "download-url-prefix": "http://your-file-server.com/",
+    "upload-base-uri": "username@your-file-server.com:/path/to/docroot"
 }
 ```
 

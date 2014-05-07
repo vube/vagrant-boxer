@@ -195,10 +195,10 @@ class BoxerTest extends \PHPUnit_Framework_TestCase {
 		$templates = array(
 			"" => "",
 			"abc" => "abc",
-			"{name}" => $name,
-			"{version}" => "0.0",
-			"{provider}" => $provider,
-			"http://localhost/{name}/{version}/{provider}" => "http://localhost/$name/0.0/$provider",
+			"{{name}}" => $name,
+			"{{version}}" => "0.0",
+			"{{provider}}" => $provider,
+			"http://localhost/{{name}}/{{version}}/{{provider}}" => "http://localhost/$name/0.0/$provider",
 		);
 
 		foreach($templates as $input => $expectedUrl)
