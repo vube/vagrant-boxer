@@ -30,6 +30,8 @@ your machine.
 
 ```bash
 $ git clone https://github.com/vube/vagrant-boxer
+$ cd vagrant-boxer
+$ composer update
 ```
 
 Then you can optionally symlink something like /usr/local/bin/boxer.php
