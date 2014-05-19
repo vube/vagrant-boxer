@@ -360,20 +360,26 @@ class Boxer {
 
 	public function writeMetaData()
 	{
-		$cwd = posix_getcwd();
-		$file = realpath($cwd .DIRECTORY_SEPARATOR. $this->metadataJsonFilename);
-
-		// Even though we didn't necessarily WRITE this file, it is a file that is
-		// created/updated by us, we want to know its location
-		$this->createdFiles[] = $file;
+        $written = false;
 
 		if($this->metadata->saveToFile($this->metadataJsonFilename, $this->forceWriteMetadata))
 		{
-			$this->write("METADATA LOCATION: $file\n");
-			return true;
+			$written = true;
 		}
 
-		return false;
+        // AFTER creating the file, then we can use realpath() to find out where
+        // the file got written.
+
+        $cwd = posix_getcwd();
+        $file = realpath($cwd .DIRECTORY_SEPARATOR. $this->metadataJsonFilename);
+
+        // Even though we didn't necessarily WRITE this file, it is a file that is
+        // created/updated by us, we want to know its location
+        $this->createdFiles[] = $file;
+
+        $this->write("METADATA LOCATION: $file\n");
+
+		return $written;
 	}
 
 	public function getVersionedFilename()
