@@ -23,6 +23,7 @@ class Boxer {
 
 	private $uploadEnabled = true;
 	private $uploadBaseUri = null;
+    private $uploadMethod = 'rsync -av --rsh=ssh --progress';
 
 	private $majorVersion;
 	private $urlTemplate;
@@ -156,6 +157,11 @@ class Boxer {
 				case '--no-upload':
 					$this->uploadEnabled = false;
 					break;
+
+                case '--upload-method':
+                    $this->uploadMethod = $this->getNextArg($args, $i);
+                    $i++;
+                    break;
 
 				case '--no-bump-version':
 					$this->updateVersion = false;
@@ -461,17 +467,17 @@ class Boxer {
 
 		// Command to copy stuff up to the vagrant-catalog server
 		$command = array(
-			'scp',
+            $this->uploadMethod,
 			implode(' ', array_map('escapeshellarg', $this->createdFiles)),
 			escapeshellarg($uri),
 		);
 		$command = implode(' ', $command);
 
-		echo "EXEC: $command\n";
+		$this->write("EXEC: $command\n");
 		passthru($command, $r);
 
 		if($r !== 0)
-			throw new Exception("Failed to scp, exit code=$r");
+            throw new Exception("Failed to upload files, exit code=$r from method='{$this->uploadMethod}'");
 	}
 
 	public function init($args=array())

@@ -58,6 +58,10 @@ VirtualBox list.
 $ boxer.php --verbose --base "{BASENAME}" --boxer-id "your-company/{BASENAME}"  --major-version 1.0 --url-prefix "http://your-file-server.com/" --upload-base-uri "username@your-file-server.com:/path/to/docroot"
 ```
 
+Note: If you don't have `rsync` on your system, you can set the `--upload-method scp`
+flags on the command line to use `scp` instead.  You can pass any command here that
+takes arguments in the form `command src1..srcN destination`
+
 
 ### Usage via boxer.json
 
