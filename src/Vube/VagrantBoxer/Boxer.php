@@ -251,7 +251,7 @@ class Boxer {
 		if($json === false)
 		{
 			$cwd = posix_getcwd();
-			$this->writeStderr("Warning: No {$this->boxerConfigFilename} (current dir: $cwd), using default");
+			$this->writeStderr("Warning: No {$this->boxerConfigFilename} (current dir: $cwd), using default\n");
 			return null;
 		}
 
