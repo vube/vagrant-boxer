@@ -7,6 +7,7 @@ namespace Vube\VagrantBoxer;
 
 use Vube\VagrantBoxer\Exception;
 use Vube\VagrantBoxer\Exception\MissingArgumentException;
+use Vube\FileSystem\PathTranslator;
 
 
 /**
@@ -466,10 +467,19 @@ class Boxer {
 			(substr($this->uploadBaseUri,-1) == '/' ? '' : '/') . // add trailing slash if none exists
 			$this->metadata->get('name') . '/'; // append name of the project (pathinfo) and trailing slash
 
+        // Translate local filenames (required for Windows+MSYS)
+        $files = array();
+        $translator = new PathTranslator();
+        foreach($this->createdFiles as $file)
+        {
+            $posixPath = $translator->translate($file);
+            $files[] = $posixPath;
+        }
+
 		// Command to copy stuff up to the vagrant-catalog server
 		$command = array(
             $this->uploadMethod,
-			implode(' ', array_map('escapeshellarg', $this->createdFiles)),
+			implode(' ', array_map('escapeshellarg', $files)),
 			escapeshellarg($uri),
 		);
 		$command = implode(' ', $command);
