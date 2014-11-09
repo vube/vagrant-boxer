@@ -251,7 +251,7 @@ class Boxer {
 
 		if($json === false)
 		{
-			$cwd = posix_getcwd();
+			$cwd = getcwd();
 			$this->writeStderr("Warning: No {$this->boxerConfigFilename} (current dir: $cwd), using default\n");
 			return null;
 		}
@@ -377,7 +377,7 @@ class Boxer {
         // AFTER creating the file, then we can use realpath() to find out where
         // the file got written.
 
-        $cwd = posix_getcwd();
+        $cwd = getcwd();
         $file = realpath($cwd .DIRECTORY_SEPARATOR. $this->metadataJsonFilename);
 
         // Even though we didn't necessarily WRITE this file, it is a file that is
@@ -445,7 +445,7 @@ class Boxer {
 
 		$this->metadata->addVersionProvider($this->version, $provider);
 
-		$cwd = posix_getcwd();
+		$cwd = getcwd();
 		$file = realpath($cwd . DIRECTORY_SEPARATOR . $versionedFilename);
 
 		$this->createdFiles[] = $file;
