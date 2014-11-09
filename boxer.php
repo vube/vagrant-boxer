@@ -15,8 +15,14 @@ use Vube\VagrantBoxer\Boxer;
 // Require composer autoloader
 require __DIR__ .DIRECTORY_SEPARATOR. 'vendor' .DIRECTORY_SEPARATOR. 'autoload.php';
 
+try
+{
+    $boxer = new Boxer();
 
-$boxer = new Boxer();
-
-$boxer->init($_SERVER['argv']);
-$boxer->exec();
+    $boxer->init($_SERVER['argv']);
+    $boxer->exec();
+}
+catch(Exception $e)
+{
+    echo "\nFatal error: ".$e->__toString()."\n";
+}

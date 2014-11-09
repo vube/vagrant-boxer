@@ -7,6 +7,7 @@ namespace Vube\VagrantBoxer;
 
 use Vube\VagrantBoxer\Exception;
 use Vube\VagrantBoxer\Exception\MissingArgumentException;
+use Vube\FileSystem\PathTranslator;
 
 
 /**
@@ -147,6 +148,7 @@ class Boxer {
 
 				case '--vagrant':
 					$this->pathToVagrant = $this->getNextArg($args, $i);
+                    $i++;
 					break;
 
 				case '--vagrant-output-file':
@@ -250,7 +252,7 @@ class Boxer {
 
 		if($json === false)
 		{
-			$cwd = posix_getcwd();
+			$cwd = getcwd();
 			$this->writeStderr("Warning: No {$this->boxerConfigFilename} (current dir: $cwd), using default\n");
 			return null;
 		}
@@ -376,7 +378,7 @@ class Boxer {
         // AFTER creating the file, then we can use realpath() to find out where
         // the file got written.
 
-        $cwd = posix_getcwd();
+        $cwd = getcwd();
         $file = realpath($cwd .DIRECTORY_SEPARATOR. $this->metadataJsonFilename);
 
         // Even though we didn't necessarily WRITE this file, it is a file that is
@@ -444,7 +446,7 @@ class Boxer {
 
 		$this->metadata->addVersionProvider($this->version, $provider);
 
-		$cwd = posix_getcwd();
+		$cwd = getcwd();
 		$file = realpath($cwd . DIRECTORY_SEPARATOR . $versionedFilename);
 
 		$this->createdFiles[] = $file;
@@ -465,10 +467,19 @@ class Boxer {
 			(substr($this->uploadBaseUri,-1) == '/' ? '' : '/') . // add trailing slash if none exists
 			$this->metadata->get('name') . '/'; // append name of the project (pathinfo) and trailing slash
 
+        // Translate local filenames (required for Windows+MSYS)
+        $files = array();
+        $translator = new PathTranslator();
+        foreach($this->createdFiles as $file)
+        {
+            $posixPath = $translator->translate($file);
+            $files[] = $posixPath;
+        }
+
 		// Command to copy stuff up to the vagrant-catalog server
 		$command = array(
             $this->uploadMethod,
-			implode(' ', array_map('escapeshellarg', $this->createdFiles)),
+			implode(' ', array_map('escapeshellarg', $files)),
 			escapeshellarg($uri),
 		);
 		$command = implode(' ', $command);

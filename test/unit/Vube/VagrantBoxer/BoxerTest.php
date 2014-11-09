@@ -41,8 +41,13 @@ class BoxerTest extends \PHPUnit_Framework_TestCase {
 			$p->addFile("$fixturesPath/$file", basename($file));
 
 		$p->compress(\Phar::GZ);
+        unset($p); // Windows: make $p release the tmp.tar file
 
-		unlink("tmp.tar");
+		if(! unlink("tmp.tar"))
+        {
+            fwrite(STDERR, "unlink('tmp.tar') failed in ".getcwd()."\n");
+            system('ls -la');
+        }
 		rename("tmp.tar.gz", "empty.box");
 
 		self::$emptyPackageBox = file_get_contents("empty.box");
