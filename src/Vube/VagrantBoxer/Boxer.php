@@ -147,6 +147,7 @@ class Boxer {
 
 				case '--vagrant':
 					$this->pathToVagrant = $this->getNextArg($args, $i);
+                    $i++;
 					break;
 
 				case '--vagrant-output-file':
