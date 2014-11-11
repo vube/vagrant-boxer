@@ -277,7 +277,10 @@ class BoxerTest extends \PHPUnit_Framework_TestCase {
 		$box->init();
 		$meta2 = $box->getMetaData();
 
-		$this->assertEquals($meta1, $meta2);
+        $data1 = $meta1->dataAsArray();
+        $data2 = $meta2->dataAsArray();
+
+		$this->assertEquals($data1, $data2);
 	}
 
 	public function testPersistentMetaDataWithVersionBumps()

@@ -47,7 +47,8 @@ class Boxer {
 	private $defaultMajorVersion = 0;
 	private $boxerConfigFilename = 'boxer.json'; // in current directory
 	private $metadataJsonFilename = 'metadata.json'; // in current directory
-	private $vagrantBoxOutputFilename = 'package.box'; // in current directory
+    private $vagrantBoxOutputFilename = 'package.box'; // in $vagrantBoxOutputDirectory directory
+	private $vagrantBoxOutputDirectory = '.'; // in current directory
 
 	private $metadata = null;
 
@@ -156,7 +157,12 @@ class Boxer {
 					$i++;
 					break;
 
-				case '--no-upload':
+                case '--vagrant-output-dir':
+                    $this->vagrantBoxOutputDirectory = $this->getNextArg($args, $i);
+                    $i++;
+                    break;
+
+                case '--no-upload':
 					$this->uploadEnabled = false;
 					break;
 
@@ -378,8 +384,7 @@ class Boxer {
         // AFTER creating the file, then we can use realpath() to find out where
         // the file got written.
 
-        $cwd = getcwd();
-        $file = realpath($cwd .DIRECTORY_SEPARATOR. $this->metadataJsonFilename);
+        $file = realpath($this->metadataJsonFilename);
 
         // Even though we didn't necessarily WRITE this file, it is a file that is
         // created/updated by us, we want to know its location
@@ -392,19 +397,24 @@ class Boxer {
 
 	public function getVersionedFilename()
 	{
-		return basename($this->url);
+        $filename = basename($this->url);
+		return $this->vagrantBoxOutputDirectory . '/' . $filename;
 	}
 
 	public function package()
 	{
-		$boxname = $this->vagrantBoxOutputFilename;
+		$boxname = $this->vagrantBoxOutputDirectory . '/' . $this->vagrantBoxOutputFilename;
 
 		$versionedFilename = $this->getVersionedFilename();
 
 		if($this->repackage || ! file_exists($boxname))
 		{
 			// Remove existing file (if any) to prevent vagrant errors
-			@unlink($boxname);
+            if(file_exists($boxname))
+            {
+                if(! unlink($boxname))
+                    throw new Exception("Cannot remove temporary file: $boxname");
+            }
 
 			$command = array(
 				$this->pathToVagrant, 'package',
@@ -446,8 +456,7 @@ class Boxer {
 
 		$this->metadata->addVersionProvider($this->version, $provider);
 
-		$cwd = getcwd();
-		$file = realpath($cwd . DIRECTORY_SEPARATOR . $versionedFilename);
+		$file = realpath($versionedFilename);
 
 		$this->createdFiles[] = $file;
 		$this->write("PACKAGE LOCATION: $file\n");
@@ -468,12 +477,47 @@ class Boxer {
 			$this->metadata->get('name') . '/'; // append name of the project (pathinfo) and trailing slash
 
         // Translate local filenames (required for Windows+MSYS)
+        $fileNames = array();
         $files = array();
         $translator = new PathTranslator();
         foreach($this->createdFiles as $file)
         {
+            $fileNames[] = basename($file);
             $posixPath = $translator->translate($file);
             $files[] = $posixPath;
+        }
+
+        $chmodCommand = null;
+
+        if(preg_match("%^((?:(?:[@:]+)@)?[^:]+):(.*)%", $uri, $matches))
+        {
+            $host = $matches[1];
+            $path = $matches[2];
+
+            // Command to create the directory on the remote server
+            $command = array(
+                'ssh',
+                escapeshellarg($host),
+                escapeshellarg("mkdir -p -m 0775 $path"),
+            );
+            $command = implode(' ', $command);
+
+            $this->write("EXEC: $command\n");
+            passthru($command, $r);
+
+            if($r !== 0)
+                throw new Exception("Failed to create upload directory, exit code=$r");
+
+            $remoteFiles = array();
+            foreach($fileNames as $file)
+                $remoteFiles[] = $path . $file;
+
+            $command = array(
+                'ssh',
+                escapeshellarg($host),
+                escapeshellarg("chmod g+w ".implode(' ', $remoteFiles)),
+            );
+            $chmodCommand = implode(' ', $command);
         }
 
 		// Command to copy stuff up to the vagrant-catalog server
@@ -489,6 +533,16 @@ class Boxer {
 
 		if($r !== 0)
             throw new Exception("Failed to upload files, exit code=$r from method='{$this->uploadMethod}'");
+
+        if($chmodCommand !== null)
+        {
+            $command = $chmodCommand;
+            $this->write("EXEC: $command\n");
+            passthru($command, $r);
+
+            if($r !== 0)
+                throw new Exception("Failed to chmod files, exit code=$r");
+        }
 	}
 
 	public function init($args=array())
@@ -508,7 +562,7 @@ class Boxer {
 	public function exec()
 	{
 		// 1) IFF we are updating the metadata, bump the version number
-		if($this->updateVersion)
+		if($this->updateVersion && ! $this->metadata->isDefault())
 			$this->bumpVersionNumber();
 
 		// 2) Package up the box

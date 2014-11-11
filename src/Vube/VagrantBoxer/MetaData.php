@@ -18,6 +18,7 @@ class MetaData {
 
 	private $data;
 	private $defaults;
+    private $bIsDefault = true;
 	private $modified = false;
 
 	public function __construct($boxerId)
@@ -50,6 +51,11 @@ class MetaData {
 			$this->data[$name] = $value;
 		}
 	}
+
+    public function isDefault()
+    {
+        return $this->bIsDefault;
+    }
 
 	public function getNumVersions()
 	{
@@ -184,12 +190,14 @@ class MetaData {
 
 			$this->validateJson($obj);
 			$this->data = $obj;
+            $this->bIsDefault = false;
 			$this->modified = false;
 
 			return self::METADATA_CUSTOM;
 		}
 
 		$this->data = $this->defaults;
+        $this->bIsDefault = true;
 		$this->modified = false;
 
 		return self::METADATA_DEFAULT;
