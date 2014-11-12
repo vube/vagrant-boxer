@@ -417,15 +417,19 @@ class Boxer {
 	{
         $written = false;
 
-		if($this->metadata->saveToFile($this->metadataJsonFilename, $this->forceWriteMetadata))
-		{
-			$written = true;
-		}
+        // Don't write metadata in test mode
+        if(! $this->isTestMode())
+        {
+            if($this->metadata->saveToFile($this->metadataJsonFilename, $this->forceWriteMetadata))
+            {
+                $written = true;
+            }
+        }
 
         // AFTER creating the file, then we can use realpath() to find out where
         // the file got written.
 
-        $file = realpath($this->metadataJsonFilename);
+        $file = $this->metadataJsonFilename;
 
         // Even though we didn't necessarily WRITE this file, it is a file that is
         // created/updated by us, we want to know its location
@@ -506,7 +510,7 @@ class Boxer {
 
 		$this->metadata->addVersionProvider($this->version, $provider);
 
-		$file = realpath($versionedFilename);
+		$file = $versionedFilename;
 
 		$this->createdFiles[] = $file;
 		$this->write("PACKAGE LOCATION: $file\n");
