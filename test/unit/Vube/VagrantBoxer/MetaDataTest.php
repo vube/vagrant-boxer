@@ -136,8 +136,7 @@ class MetaDataTest extends \PHPUnit_Framework_TestCase {
 
     public function testSaveDefaultsToExistingFileReturnsFalse()
     {
-        $newFile = vfsStream::url('root/output-dir/metadata.json');
-        touch($newFile); // create the file
+        $newFile = vfsStream::url('root/existing-dir/metadata.json');
 
         $metadata = new MetaData(self::DEFAULT_METADATA_NAME);
         $result = $metadata->saveToFile($newFile);
@@ -147,8 +146,7 @@ class MetaDataTest extends \PHPUnit_Framework_TestCase {
 
     public function testSaveDefaultsToExistingFileReturnsTrueWhenForced()
     {
-        $newFile = vfsStream::url('root/output-dir/metadata.json');
-        touch($newFile); // create the file
+        $newFile = vfsStream::url('root/existing-dir/metadata.json');
 
         $metadata = new MetaData(self::DEFAULT_METADATA_NAME);
         $result = $metadata->saveToFile($newFile, true);
