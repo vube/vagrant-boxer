@@ -45,10 +45,15 @@ class Boxer {
 	private $defaultUrlTemplatePrefix = '{{download_url_prefix}}{{path_info}}/'; // see https://github.com/vube/vagrant-catalog
 	private $defaultUrlTemplateSuffix = '{{name}}-{{version}}-{{provider}}.box';
 	private $defaultMajorVersion = 0;
+    private $bIsNewMajorVersion = false;
 	private $boxerConfigFilename = 'boxer.json'; // in current directory
 	private $metadataJsonFilename = 'metadata.json'; // in current directory
     private $vagrantBoxOutputFilename = 'package.box'; // in $vagrantBoxOutputDirectory directory
 	private $vagrantBoxOutputDirectory = '.'; // in current directory
+
+    private $testCallback = null;
+
+    private $bIsTestMode = false;
 
 	private $metadata = null;
 
@@ -86,10 +91,32 @@ class Boxer {
 		return $this->version;
 	}
 
-	public function silenceStderr()
+    public function isNewMajorVersion()
+    {
+        return $this->bIsNewMajorVersion;
+    }
+
+    public function isTestMode()
+    {
+        return $this->bIsTestMode;
+    }
+
+    public function silenceStderr()
 	{
 		$this->stderr = null;
 	}
+
+    public function setTestCallback($callback)
+    {
+        $this->testCallback = $callback;
+    }
+
+    public function makeTestCallback($message)
+    {
+        if(is_callable($this->testCallback))
+            call_user_func($this->testCallback, $message);
+        return 0;
+    }
 
 	public function write()
 	{
@@ -143,11 +170,15 @@ class Boxer {
 			$arg = $args[$i];
 			switch($arg)
 			{
-				case '--verbose':
+                case '--test':
+                    $this->bIsTestMode = true;
+                    break;
+
+                case '--verbose':
 					$this->verbose = true;
 					break;
 
-				case '--vagrant':
+                case '--vagrant':
 					$this->pathToVagrant = $this->getNextArg($args, $i);
                     $i++;
 					break;
@@ -329,25 +360,32 @@ class Boxer {
 
 	public function calculateCurrentVersionNumber()
 	{
+        $this->bIsNewMajorVersion = false;
 		$activeVersionNumber = $this->metadata->getActiveVersionNumber();
 
 		// If there is an active version
 		if($activeVersionNumber !== null)
 		{
 			// Find out the length of majorVersion, e.g. "1.0" == 3
+            $a = strlen($activeVersionNumber);
 			$n = strlen($this->majorVersion);
 
 			// If active version looks like "1.0.x" then it's still part
 			// of the current major version
-			if(strlen($activeVersionNumber) > $this->majorVersion
-				&& substr($activeVersionNumber, 0, $n+1) === $this->majorVersion.'.')
-			{
-				return $activeVersionNumber;
+			if($a > $n)
+            {
+                $aSub = substr($activeVersionNumber, 0, $n+1);
+                $nSub = $this->majorVersion . '.';
+
+                if($aSub === $nSub)
+                	return $activeVersionNumber;
 			}
+
 			// else the major version has changed so start the patch numbers
 			// over at zero
 		}
 
+        $this->bIsNewMajorVersion = true;
 		$defaultVersionNumber = $this->majorVersion . '.0';
 		return $defaultVersionNumber;
 	}
@@ -362,11 +400,14 @@ class Boxer {
 
 	public function bumpVersionNumber()
 	{
-		$version = explode(".", $this->version);
-		$version[count($version)-1]++;
-		$version = implode(".", $version);
+        if(! $this->bIsNewMajorVersion)
+        {
+            $version = explode(".", $this->version);
+            $version[count($version)-1]++;
+            $version = implode(".", $version);
 
-		$this->version = $version;
+            $this->version = $version;
+        }
 
 		// We changed the version number, recompute the URL
 		$this->url = $this->computeUrl();
@@ -412,7 +453,7 @@ class Boxer {
 			// Remove existing file (if any) to prevent vagrant errors
             if(file_exists($boxname))
             {
-                if(! unlink($boxname))
+                if(! $this->isTestMode() && ! unlink($boxname))
                     throw new Exception("Cannot remove temporary file: $boxname");
             }
 
@@ -425,26 +466,35 @@ class Boxer {
 			$command = implode(" ", $command);
 
 			$this->write("EXEC: $command\n");
-			passthru($command, $r);
+
+            if($this->isTestMode())
+                $r = $this->makeTestCallback("EXEC: $command");
+            else
+                passthru($command, $r);
 
 			if($r !== 0)
 				throw new Exception("vagrant package failed, exit code=$r from command: $command");
 
-			if(! file_exists($boxname))
+			if(! $this->isTestMode() && ! file_exists($boxname))
 				throw new Exception("vagrant package seems to have failed; its expected output file ($boxname) does not exist. Make sure the vm-name ({$this->name}) corresponds to the name of your VM in VirtualBox and that this VM exists in VirtualBox");
 		}
 
 		// Copy the output file to the final location
 		// Why copy?  Mainly for testing so I don't have to keep repackaging,
 		// which consumes a ton of time.
-		@unlink($versionedFilename); // remove any existing file before trying to copy
-		if(! copy($boxname, $versionedFilename))
-			throw new Exception("Unable to copy vagrant package to $versionedFilename");
+        if(! $this->isTestMode())
+        {
+            @unlink($versionedFilename); // remove any existing file before trying to copy
+            if(! copy($boxname, $versionedFilename))
+                throw new Exception("Unable to copy vagrant package to $versionedFilename");
 
-		// Need to remember the new sha1 of this file
-		$sha1 = sha1_file($versionedFilename);
-		if($sha1 === false)
-			throw new Exception("Unable to compute sha1 checksum of file $versionedFilename");
+            // Need to remember the new sha1 of this file
+            $sha1 = sha1_file($versionedFilename);
+            if($sha1 === false)
+                throw new Exception("Unable to compute sha1 checksum of file $versionedFilename");
+        }
+        else
+            $sha1 = 'test';
 
 		// Add new version to metadata
 		$provider = array(
@@ -503,7 +553,11 @@ class Boxer {
             $command = implode(' ', $command);
 
             $this->write("EXEC: $command\n");
-            passthru($command, $r);
+
+            if($this->isTestMode())
+                $r = $this->makeTestCallback("EXEC: $command");
+            else
+                passthru($command, $r);
 
             if($r !== 0)
                 throw new Exception("Failed to create upload directory, exit code=$r");
@@ -529,7 +583,11 @@ class Boxer {
 		$command = implode(' ', $command);
 
 		$this->write("EXEC: $command\n");
-		passthru($command, $r);
+
+        if($this->isTestMode())
+            $r = $this->makeTestCallback("EXEC: $command");
+        else
+            passthru($command, $r);
 
 		if($r !== 0)
             throw new Exception("Failed to upload files, exit code=$r from method='{$this->uploadMethod}'");
@@ -538,7 +596,11 @@ class Boxer {
         {
             $command = $chmodCommand;
             $this->write("EXEC: $command\n");
-            passthru($command, $r);
+
+            if($this->isTestMode())
+                $r = $this->makeTestCallback("EXEC: $command");
+            else
+                passthru($command, $r);
 
             if($r !== 0)
                 throw new Exception("Failed to chmod files, exit code=$r");
@@ -561,6 +623,9 @@ class Boxer {
 
 	public function exec()
 	{
+        if($this->isTestMode())
+            $this->write("NOTICE: Running in test mode, files won't be generated or uploaded.\n");
+
 		// 1) IFF we are updating the metadata, bump the version number
 		if($this->updateVersion && ! $this->metadata->isDefault())
 			$this->bumpVersionNumber();
