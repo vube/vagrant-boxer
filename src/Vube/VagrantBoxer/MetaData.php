@@ -57,6 +57,11 @@ class MetaData {
         return $this->bIsDefault;
     }
 
+    public function isModified()
+    {
+        return $this->modified;
+    }
+
 	public function getNumVersions()
 	{
 		return count($this->data['versions']);
@@ -144,23 +149,8 @@ class MetaData {
 				}
 			}
 		}
-	}
 
-	public function updateVersionChecksum($version, $checksumType, $checksum)
-	{
-		$i = $this->getVersionNumberIndex($version);
-		if($i === null)
-			throw new Exception("No such version $version found in metadata");
-
-		if(    ! isset($this->data['versions'][$i]['checksum_type'])
-			|| ! isset($this->data['versions'][$i]['checksum'])
-			|| $this->data['versions'][$i]['checksum_type'] !== $checksumType
-			|| $this->data['versions'][$i]['checksum'] !== $checksum)
-		{
-			$this->modified = true;
-			$this->data['versions'][$i]['checksum_type'] = $checksumType;
-			$this->data['versions'][$i]['checksum'] = $checksum;
-		}
+        return count($this->data['versions']);
 	}
 
 	public function validateJson(&$obj)
@@ -184,14 +174,26 @@ class MetaData {
 	{
 		$json = @file_get_contents($file);
 
-		if($json !== false)
-		{
-			$obj = json_decode($json, true);
+		if($json !== false) {
+            $obj = json_decode($json, true);
 
-			$this->validateJson($obj);
+            $this->validateJson($obj);
+
+            $this->modified = false;
+
+            // This could happen if we created the metadata.json with the box named 'foo/bar'
+            // but the boxer.json config was later updated to say the new box name is 'foo/rab'.
+            // In that case we want to change the metadata['name'] to match the new name that
+            // the boxer.json wants us to use.
+
+            if ($obj['name'] !== $this->data['name'])
+            {
+                $obj['name'] = $this->data['name'];
+                $this->modified = true;
+            }
+
 			$this->data = $obj;
             $this->bIsDefault = false;
-			$this->modified = false;
 
 			return self::METADATA_CUSTOM;
 		}
@@ -215,7 +217,7 @@ class MetaData {
 
 		$json = json_encode($this->data, $flags);
 
-		$fh = fopen($file, "w");
+		$fh = fopen($file, "wb");
 		if(! $fh)
 			throw new Exception("Failed to write file: $file");
 
