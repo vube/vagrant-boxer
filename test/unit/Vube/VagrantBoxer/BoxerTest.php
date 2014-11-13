@@ -457,6 +457,39 @@ class BoxerTest extends \PHPUnit_Framework_TestCase
         $this->assertFileNotExists($filename, "Test mode should NOT create files");
     }
 
+    public function testUrlCalculationBasic()
+    {
+        $boxerId = 'boxer-id';
+        $box = $this->constructBoxer(array(
+            'test' => true,
+            'base' => $boxerId,  // Name of the VM to export
+            'boxer-id' => "excluded/$boxerId",  // name of the box in the Vagrant catalog
+            'url' => '{{name}}',
+        ));
+        $box->init();
+        $box->exec();
+
+        $url = $box->getUrl();
+        $this->assertSame($boxerId, $url, "Expect to get $boxerId back as the URL");
+    }
+
+    public function testUrlCalculationBasicCustomBoxerId()
+    {
+        $vmName = 'vm-name';
+        $boxerId = 'boxer-id';
+        $box = $this->constructBoxer(array(
+            'test' => true,
+            'base' => $vmName,  // Name of the VM to export
+            'boxer-id' => "excluded/$boxerId",  // name of the box in the Vagrant catalog
+            'url' => '{{name}}',
+        ));
+        $box->init();
+        $box->exec();
+
+        $url = $box->getUrl();
+        $this->assertSame($boxerId, $url, "Expect to get $boxerId back as the URL");
+    }
+
     public function callbackHandlerTestMode($message)
     {
         $this->nTestCallbacks++;

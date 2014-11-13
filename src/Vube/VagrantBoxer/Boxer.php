@@ -91,6 +91,11 @@ class Boxer {
 		return $this->version;
 	}
 
+    public function getUrl()
+    {
+        return $this->url;
+    }
+
     public function isNewMajorVersion()
     {
         return $this->bIsNewMajorVersion;
@@ -351,8 +356,10 @@ class Boxer {
 
 	public function computeUrl($template=null)
 	{
+        $urlName = basename($this->boxerId);
+
 		$url = ($template===null) ? $this->urlTemplate : $template;
-		$url = str_replace('{{name}}', $this->name, $url);
+		$url = str_replace('{{name}}', $urlName, $url);
 		$url = str_replace('{{version}}', $this->version, $url);
 		$url = str_replace('{{provider}}', $this->provider, $url);
 		return $url;
