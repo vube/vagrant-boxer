@@ -31,6 +31,7 @@ class Boxer {
 	private $forceWriteMetadata = false;
 
 	private $name;
+	private $vagrantFile;
 	private $boxerId;
 	private $version = null;
 	private $url;
@@ -69,6 +70,11 @@ class Boxer {
 	public function getName()
 	{
 		return $this->name;
+	}
+
+	public function getVagrantFile()
+	{
+		return $this->vagrantFile;
 	}
 
 	public function getBoxerId()
@@ -234,6 +240,11 @@ class Boxer {
 					$i++;
 					break;
 
+				case '--vagrantfile':
+					$this->vagrantFile = $this->getNextArg($args, $i);
+					$i ++;
+					break;
+
 				case '--boxer-id':
 					$this->boxerId = $this->getNextArg($args, $i);
 					$i++;
@@ -274,8 +285,8 @@ class Boxer {
 
 	public function getDefaultBoxerConfig()
 	{
-		if($this->baseName === null)
-			throw new Exception("Must set --base parameter when not using boxer.json configuration");
+		//if($this->baseName === null)
+		//	throw new Exception("Must set --base parameter when not using boxer.json configuration");
 
 		return array(
 			'vm-name' => $this->baseName,
@@ -470,9 +481,16 @@ class Boxer {
 
 			$command = array(
 				$this->pathToVagrant, 'package',
-				'--base', escapeshellarg($this->name),
 				'--output', escapeshellarg($boxname),
 			);
+			if($this->name)
+			{
+				array_push($command, '--base', escapeshellarg($this->name));
+			}
+			if($this->vagrantFile)
+			{
+				array_push($command, '--vagrantfile', escapeshellarg($this->vagrantFile));
+			}
 
 			$command = implode(" ", $command);
 
