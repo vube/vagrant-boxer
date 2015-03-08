@@ -101,13 +101,6 @@ class BoxerTest extends \PHPUnit_Framework_TestCase
         $foo = $box->getNextArg($args, 0);
     }
 
-    public function testDefaultBoxerConfigRequiresBaseName()
-    {
-        $box = new Boxer;
-        $this->setExpectedException('\Vube\VagrantBoxer\Exception');
-        $box->getDefaultBoxerConfig();
-    }
-
     public function testDefaultBoxerConfigWithBaseName()
     {
         $basename = 'basename';
