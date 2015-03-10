@@ -9,6 +9,8 @@ Vagrant Boxer
 Application to manage boxing up Vagrant VMs to be used as base boxes for use in
 private box distribution systems.
 
+A complete example can be found here: [vagrant-boxer-example](https://github.com/xclusv/vagrant-boxer-example)
+
 
 Features
 --------
